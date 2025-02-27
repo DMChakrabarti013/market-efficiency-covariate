@@ -1,7 +1,7 @@
 # d. m. chakrabarti
 # applied econometrics for macro
 # Problem set 1
-# problem number 6a
+# problem number 6b
 
 ########## loading packagaes #############
 library(readxl)
