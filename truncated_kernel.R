@@ -26,44 +26,26 @@ data$X <- 1200 * (data$F - data$S) # independent variable
 model <- lm(Y ~ X, data = data)
 summary(model)
 
-# robust standard errors using truncated kernel (qt = 4)
-# residuals and design matrix
-residVec <- model$residuals
-Xmat <- model.matrix(model)
-T_obs <- nrow(Xmat)
-
-gamma0 <- t(Xmat) %*% ( (residVec^2) * Xmat ) / T_obs # gamma 0
-k <- ncol(Xmat)
-gammaSum <- matrix(0, ncol = k, nrow = k)
-
-qT <- 4
-
-for(j in 1:qT) {
-  gamma_j <- matrix(0, ncol = k, nrow = k)
-  for(t in (j+1):T_obs) {
-    gamma_j <- gamma_j + t(residVec[t] * Xmat[t, , drop = FALSE]) %*% (residVec[t-j] * Xmat[t-j, , drop = FALSE])
-  }
-  gamma_j <- gamma_j / T_obs
-  gammaSum <- gammaSum + gamma_j + t(gamma_j)
+truncated_kernel <- function(x) {
+  ifelse(abs(x) <= 1,1,0)
 }
 
-bread <- solve(t(Xmat) %*% Xmat)
 
-robustVar <- bread %*% gammaSum %*% bread
+vcov_truncated <- vcovHAC(model, kernel = truncated_kernel, bw = 4)
 
-robustSE <- sqrt(diag(robustVar))
-print("Robust standard errors (truncated kernel, qT=4):")
-print(robustSE)
+se_truncated <- coeftest(model, vcov = vcov_truncated)
+se_truncated
 
-# wald test
+# wald Test
+# null hypothesis
 betaHat <- coef(model)
-betaNull <- c(0,1)
+betaNull <- c(0, 1)
 
 diffBeta <- betaHat - betaNull
 
-waldStat <- as.numeric(t(diffBeta) %*% solve(robustVar) %*% diffBeta)
+waldStat <- as.numeric(t(diffBeta) %*% solve(vcov_truncated) %*% diffBeta)
 cat("Wald statistic =", waldStat, "\n")
 
-# p-value
+# p-value from chi-squared distribution with 2 degrees of freedom:
 p_value <- 1 - pchisq(waldStat, df = 2)
 cat("p-value =", p_value, "\n")
